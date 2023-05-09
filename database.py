@@ -10,7 +10,7 @@ if os.path.exists('.env'):
 
 else:
     # Use environmental variables
-    MONGO_URI = os.environ.get('MONGO_URL')
+    MONGO_URI = os.environ.get('MONGO_URI')
 
     host = os.environ.get('MONGOHOST')
     pw = os.environ.get('MONGOPASSWORD')
@@ -29,3 +29,6 @@ try:
     print('Connected to the database')
 except Exception as e:
     print(f'Error connecting to the database: {str(e)}')
+    exit()
+
+print('Database connection established successfully.')

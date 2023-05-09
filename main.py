@@ -30,8 +30,6 @@ else:
 CORS(app, resources={
      r"/*": {"origins": ["*"]}})
 
-# fjernes når vi føler for det
-
 
 @app.route('/', methods=['GET'])
 def test():
@@ -55,8 +53,7 @@ def get_all_tools():
         redis_client.expire('tool_requests', tools_request_count_expiration)
 
         # get the current count of tool requests
-        tool_request_count = int(
-            redis_client.get('tool_requests') or 0)
+        tool_request_count = int(redis_client.get('tool_requests') or 0)
 
         # check if there have been more than 4 tool requests in the last hour
         if tool_request_count > 4:
