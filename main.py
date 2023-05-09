@@ -21,10 +21,14 @@ app = Flask(__name__)
 
 if os.environ.get('RAILWAY_ENV'):
     redis_url = os.environ.get('REDIS_URL')
+    print(f"Connecting to Redis at {redis_url}")
     redis_client = redis.from_url(redis_url)
 else:
     redis_client = redis.Redis(host=os.getenv('REDIS_HOST'), port=os.getenv(
         'REDIS_PORT'), db=os.getenv('REDIS_DB'))
+    print(
+        f"Connecting to Redis at {os.getenv('REDIS_HOST')}:{os.getenv('REDIS_PORT')} with DB {os.getenv('REDIS_DB')}")
+
 
 # allow cors on all of the routes
 CORS(app, resources={
