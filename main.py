@@ -5,21 +5,82 @@
 from flask import Flask, request
 import os
 import json
-
+from dotenv import load_dotenv
+from database import db
 # to allow cors, if else the client would get a cors error
 from flask_cors import CORS, cross_origin
+import redis
 
+
+tools_expiration = 90
+tools_request_count_expiration = 90
+
+load_dotenv()
 # Setup the server
 app = Flask(__name__)
 
+if os.environ.get('RAILWAY_ENV'):
+    redis_url = os.environ.get('REDIS_URL')
+    redis_client = redis.from_url(redis_url)
+else:
+    redis_client = redis.Redis(host=os.getenv('REDIS_HOST'), port=os.getenv(
+        'REDIS_PORT'), db=os.getenv('REDIS_DB'))
+
 # allow cors on all of the routes
 CORS(app, resources={
-     r"/*": {"origins": ["https://client-production-00c5.up.railway.app"]}})
+     r"/*": {"origins": ["*"]}})
 
 # fjernes når vi føler for det
+
+
 @app.route('/', methods=['GET'])
 def test():
     return 'Hei'
+
+
+# add contact in database
+@app.route('/tools', methods=['GET'])
+def get_all_tools():
+    print(redis_client.get('tool_requests'), 'inc')
+    # check if "tools" key exists in Redis
+    if redis_client.exists('tools'):
+        # if yes, get the value and decode it from JSON
+        tools_json = redis_client.get('tools')
+        tools = json.loads(tools_json)
+        return tools
+    else:
+
+        # increment the tool request counter in Redis and set the TTL from a varibale
+        redis_client.incr('tool_requests')
+        redis_client.expire('tool_requests', tools_request_count_expiration)
+
+        # get the current count of tool requests
+        tool_request_count = int(
+            redis_client.get('tool_requests') or 0)
+
+        # check if there have been more than 4 tool requests in the last hour
+        if tool_request_count > 4:
+            try:
+                tools = list(db['tools'].find())
+                # convert ObjectId values to strings
+                for tool in tools:
+                    tool['_id'] = str(tool['_id'])
+                # save the tools in Redis with variable-set expiration
+                redis_client.setex(
+                    'tools', tools_expiration, json.dumps(tools))
+                return tools
+            except Exception as e:
+                return {'message': f'Error: {e}'}, 500
+        else:
+            try:
+                tools = list(db['tools'].find())
+                # convert ObjectId values to strings
+                for tool in tools:
+                    tool['_id'] = str(tool['_id'])
+                return tools
+            except Exception as e:
+                return {'message': f'Error: {e}'}, 500
+
 
 if __name__ == '__main__':
     app.run("0.0.0.0", debug=True, port=os.getenv("PORT", default=5000))
