@@ -82,5 +82,6 @@ def get_all_tools():
                 return {'message': f'Error: {e}'}, 500
 
 
+# run server
 if __name__ == '__main__':
     app.run("0.0.0.0", debug=True, port=os.getenv("PORT", default=5000))
