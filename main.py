@@ -43,7 +43,11 @@ def test():
 # add contact in database
 @app.route('/tools', methods=['GET'])
 def get_all_tools():
-    print(redis_client.get('tool_requests'), 'inc')
+    # increase the request count and reset the expiration --> print current count
+    redis_client.incr('tool_requests')
+    redis_client.expire('tool_requests', 100)
+    print('request count is now: ', redis_client.get('tool_requests'))
+
     # check if "tools" key exists in Redis
     if redis_client.exists('tools'):
         # if yes, get the value and decode it from JSON
@@ -53,10 +57,6 @@ def get_all_tools():
         tools = json.loads(tools_json)
         return tools
     else:
-
-        # increment the tool request counter in Redis and set the TTL from a varibale
-        redis_client.incr('tool_requests')
-        redis_client.expire('tool_requests', tools_request_count_expiration)
 
         # get the current count of tool requests
         tool_request_count = int(redis_client.get('tool_requests') or 0)
