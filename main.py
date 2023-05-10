@@ -15,6 +15,7 @@ import requests
 
 contacts_expiration = 90
 contacts_request_count_expiration = 90
+default_expire_100 = 100
 
 load_dotenv()
 # Setup the server
@@ -50,14 +51,67 @@ def get_tools_from_api():
     return req.content
 
 
+@app.route('/contacts/vcard', methods=['GET'])
+def get_all_contacts_vcard():
+    URL = 'https://idg2001-oblig2-api.onrender.com/contacts/vcard'
+    # increase the request count and reset the expiration --> print current count
+    redis_client.incr('contact_vcard_requests')
+    redis_client.expire('contact_vcard_requests', default_expire_100)
+    print('request count is now: ', redis_client.get('contact_vcard_requests'))
+
+    # check if "contacts" key exists in Redis
+    if redis_client.exists('contacts_vcard'):
+        print('Vcard contacts exists in redis')
+        # if yes, get the value and decode it from JSON
+        contacts_json = redis_client.get('contacts_vcard')
+        redis_client.expire('contacts_vcard', default_expire_100)
+        print('Vcard contacts sent through redis')
+        contacts = json.loads(contacts_json)
+        return contacts
+    else:
+        print('contacts vcard does not exist')
+        # get the current count of contact requests
+        contact_request_count = int(
+            redis_client.get('contact_vcard_requests') or 0)
+
+        # check if there have been more than 4 contact requests in the last hour
+        if contact_request_count > 99:
+            try:
+                print('line 76')
+                # Get contacts from API
+                req = requests.get(URL)
+                contacts = req.content
+                # save the contacts in Redis with variable-set expiration
+                redis_client.setex(
+                    'contacts_vcard', contacts_expiration, json.dumps(contacts))
+                print('Vcard contacts are now saved in redis...')
+                print('Vcard contacts sent through database')
+                return json.loads(contacts)
+            except Exception as e:
+                return {'message': f'Error: {e}'}, 500
+        else:
+            try:
+                print('Vcard contacts sent through database')
+                # convert ObjectId values to strings
+                req = requests.get(URL)
+                print(req)
+                # contacts = req.content['message']
+                json_array = json(req.content)
+                # print(contacts)
+                return json_array
+            except Exception as e:
+                return {'message': f'Error: {e}'}, 500
+
 # get all contacts from the database + handle cache
+
+
 @app.route('/contacts', methods=['GET'])
 def get_all_contacts():
     URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
     # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
     redis_client.expire('contact_requests', 100)
-    print('Request count is now:', redis_client.get('contact_requests'))
+    print('request count is now: ', redis_client.get('contact_requests'))
 
     # Check if "contacts" key exists in Redis
     if redis_client.exists('contacts'):
@@ -68,6 +122,10 @@ def get_all_contacts():
         print('Contacts sent through Redis')
         contacts = json.loads(contacts_json)
         return contacts
+    else:
+        ('contacts does not exist')
+        # get the current count of contact requests
+        contact_request_count = int(redis_client.get('contact_requests') or 0)
 
     # Check if there have been more than 4 contact requests in the last hour
     if int(redis_client.get('contact_requests') or 0) > 4:
