@@ -10,6 +10,7 @@ from database import db
 # to allow cors, if else the client would get a cors error
 from flask_cors import CORS, cross_origin
 import redis
+import requests
 
 
 tools_expiration = 90
@@ -40,7 +41,14 @@ def test():
     return 'Hei'
 
 
-# add contact in database
+@app.route('/render', methods=['GET'])
+def get_tools_from_api():
+    req = requests.get('https://idg2001-oblig2-api.onrender.com/contacts')
+    print(req.content)
+    return req.content
+
+
+# get all tools from the database + handle cache
 @app.route('/tools', methods=['GET'])
 def get_all_tools():
     # increase the request count and reset the expiration --> print current count
@@ -50,6 +58,7 @@ def get_all_tools():
 
     # check if "tools" key exists in Redis
     if redis_client.exists('tools'):
+        print('tools exists')
         # if yes, get the value and decode it from JSON
         tools_json = redis_client.get('tools')
         redis_client.expire('tools', tools_expiration)
@@ -57,35 +66,44 @@ def get_all_tools():
         tools = json.loads(tools_json)
         return tools
     else:
-
+        ('tools does not exist')
         # get the current count of tool requests
         tool_request_count = int(redis_client.get('tool_requests') or 0)
 
         # check if there have been more than 4 tool requests in the last hour
         if tool_request_count > 4:
             try:
-                tools = list(db['tools'].find())
-                # convert ObjectId values to strings
-                for tool in tools:
-                    tool['_id'] = str(tool['_id'])
+                print('line 76')
+                # Get tools from API
+                req = requests.get(
+                    'https://idg2001-oblig2-api.onrender.com/contacts')
+                tools = req.content
                 # save the tools in Redis with variable-set expiration
                 redis_client.setex(
-                    'tools', tools_expiration, json.dumps(tools))
+                    'tools', tools_expiration, tools)
                 print('Tools are now saved in redis...')
                 print('Tools sent through database')
-                return tools
+                return json.loads(tools)
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
         else:
             try:
-                tools = list(db['tools'].find())
                 print('Tools sent through database')
                 # convert ObjectId values to strings
-                for tool in tools:
-                    tool['_id'] = str(tool['_id'])
-                return tools
+                req = requests.get(
+                    'https://idg2001-oblig2-api.onrender.com/contacts')
+                tools = req.content
+                return json.loads(tools)
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
+
+# POST
+    # 1: sende post request til mainApi
+    # 2:
+        # if(200). (main API må sende tilbake oppdatert tools).
+            # Lagre disse tools i redis
+            # Sende tilbake 200 ok
+        # if(400) returnere failemdelingen som kom fra main
 
 
 # run server
