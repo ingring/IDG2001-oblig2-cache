@@ -110,7 +110,7 @@ def get_all_contacts():
     URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
     # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
-    redis_client.expire('contact_requests', 100)
+    redis_client.expire('contact_requests', default_expire_100)
     print('request count is now: ', redis_client.get('contact_requests'))
 
     # Check if "contacts" key exists in Redis
