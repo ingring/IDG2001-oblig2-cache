@@ -13,8 +13,8 @@ import redis
 import requests
 
 
-tools_expiration = 90
-tools_request_count_expiration = 90
+contacts_expiration = 90
+contacts_request_count_expiration = 90
 
 load_dotenv()
 # Setup the server
@@ -48,52 +48,52 @@ def get_tools_from_api():
     return req.content
 
 
-# get all tools from the database + handle cache
-@app.route('/tools', methods=['GET'])
-def get_all_tools():
+# get all contacts from the database + handle cache
+@app.route('/contacts', methods=['GET'])
+def get_all_contacts():
     # increase the request count and reset the expiration --> print current count
-    redis_client.incr('tool_requests')
-    redis_client.expire('tool_requests', 100)
-    print('request count is now: ', redis_client.get('tool_requests'))
+    redis_client.incr('contact_requests')
+    redis_client.expire('contact_requests', 100)
+    print('request count is now: ', redis_client.get('contact_requests'))
 
-    # check if "tools" key exists in Redis
-    if redis_client.exists('tools'):
-        print('tools exists')
+    # check if "contacts" key exists in Redis
+    if redis_client.exists('contacts'):
+        print('contacts exists')
         # if yes, get the value and decode it from JSON
-        tools_json = redis_client.get('tools')
-        redis_client.expire('tools', tools_expiration)
-        print('Tools sent through redis')
-        tools = json.loads(tools_json)
-        return tools
+        contacts_json = redis_client.get('contacts')
+        redis_client.expire('contacts', contacts_expiration)
+        print('contacts sent through redis')
+        contacts = json.loads(contacts_json)
+        return contacts
     else:
-        ('tools does not exist')
-        # get the current count of tool requests
-        tool_request_count = int(redis_client.get('tool_requests') or 0)
+        ('contacts does not exist')
+        # get the current count of contact requests
+        contact_request_count = int(redis_client.get('contact_requests') or 0)
 
-        # check if there have been more than 4 tool requests in the last hour
-        if tool_request_count > 4:
+        # check if there have been more than 4 contact requests in the last hour
+        if contact_request_count > 4:
             try:
                 print('line 76')
-                # Get tools from API
+                # Get contacts from API
                 req = requests.get(
                     'https://idg2001-oblig2-api.onrender.com/contacts')
-                tools = req.content
-                # save the tools in Redis with variable-set expiration
+                contacts = req.content
+                # save the contacts in Redis with variable-set expiration
                 redis_client.setex(
-                    'tools', tools_expiration, tools)
-                print('Tools are now saved in redis...')
-                print('Tools sent through database')
-                return json.loads(tools)
+                    'contacts', contacts_expiration, contacts)
+                print('contacts are now saved in redis...')
+                print('contacts sent through database')
+                return json.loads(contacts)
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
         else:
             try:
-                print('Tools sent through database')
+                print('contacts sent through database')
                 # convert ObjectId values to strings
                 req = requests.get(
                     'https://idg2001-oblig2-api.onrender.com/contacts')
-                tools = req.content
-                return json.loads(tools)
+                contacts = req.content
+                return json.loads(contacts)
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
 
