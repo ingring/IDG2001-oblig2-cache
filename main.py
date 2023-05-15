@@ -1,14 +1,11 @@
 # import relevant modules
-# flask - to set up the server
-# os - to get environmental variables
-# json - to work with json format
 from flask import Flask, request
 import os
 import json
 from dotenv import load_dotenv
-from database import db
+# from database import db
 # to allow cors, if else the client would get a cors error
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import redis
 import requests
 
@@ -56,7 +53,7 @@ def get_tools_from_api():
 
 @app.route('/contacts/vcard', methods=['GET'])
 def get_all_contacts_vcard():
-        # Check if the 'key' parameter is provided in the request
+    # Check if the 'key' parameter is provided in the request
     key = request.args.get('key')
     print('dotenv', repr(API_KEY))
     print('key', repr(key))
@@ -68,7 +65,6 @@ def get_all_contacts_vcard():
     if key != API_KEY:
         print('Invalid API key')
         return {'message': 'Invalid API key'}, 401
-    
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts/vcard?key={key}'
 
     print('URL:', URL)
@@ -92,7 +88,7 @@ def get_all_contacts_vcard():
         contact_request_count = int(
             redis_client.get('contact_vcard_requests') or 0)
 
-        # check if there have been more than 4 contact requests in the last hour
+        # check if there have been more than 4 contact requests the last hour
         if contact_request_count > 99:
             try:
                 print('line 76')
@@ -120,12 +116,11 @@ def get_all_contacts_vcard():
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
 
+
 # get all contacts from the database + handle cache
-
-
 @app.route('/contacts', methods=['GET'])
 def get_all_contacts():
-        # Check if the 'key' parameter is provided in the request
+    # Check if the 'key' parameter is provided in the request
     key = request.args.get('key')
     print('dotenv', repr(API_KEY))
     print('key', repr(key))
@@ -137,7 +132,6 @@ def get_all_contacts():
     if key != API_KEY:
         print('Invalid API key')
         return {'message': 'Invalid API key'}, 401
-    
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts?key={key}'
 
     print('URL:', URL)
@@ -190,8 +184,8 @@ def get_all_contacts():
     # 1: sende post request til mainApi
     # 2:
         # if(200). (main API må sende tilbake oppdatert tools).
-            # Lagre disse tools i redis
-            # Sende tilbake 200 ok
+        # Lagre disse tools i redis
+        # Sende tilbake 200 ok
         # if(400) returnere failemdelingen som kom fra main
 
 
