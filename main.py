@@ -21,6 +21,8 @@ load_dotenv()
 # Setup the server
 app = Flask(__name__)
 
+API_KEY = os.getenv('API_KEY')
+
 if os.environ.get('RAILWAY_ENV'):
     redis_url = os.environ.get('REDIS_URL')
     print(f"Connecting to Redis at {redis_url} (railway)")
@@ -105,18 +107,19 @@ def get_all_contacts_vcard():
 
 @app.route('/contacts', methods=['GET'])
 def get_all_contacts():
-    # increase the request count and reset the expiration --> print current count
+    URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
+    # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
     redis_client.expire('contact_requests', default_expire_100)
     print('request count is now: ', redis_client.get('contact_requests'))
 
-    # check if "contacts" key exists in Redis
+    # Check if "contacts" key exists in Redis
     if redis_client.exists('contacts'):
-        print('contacts exists')
-        # if yes, get the value and decode it from JSON
+        print('Contacts exist')
+        # If yes, get the contacts value and decode it from JSON
         contacts_json = redis_client.get('contacts')
         redis_client.expire('contacts', contacts_expiration)
-        print('contacts sent through redis')
+        print('Contacts sent through Redis')
         contacts = json.loads(contacts_json)
         return contacts
     else:
@@ -124,32 +127,31 @@ def get_all_contacts():
         # get the current count of contact requests
         contact_request_count = int(redis_client.get('contact_requests') or 0)
 
-        # check if there have been more than 4 contact requests in the last hour
-        if contact_request_count > 4:
-            try:
-                print('line 76')
-                # Get contacts from API
-                req = requests.get(
-                    'https://idg2001-oblig2-api.onrender.com/contacts')
-                contacts = req.content
-                # save the contacts in Redis with variable-set expiration
-                redis_client.setex(
-                    'contacts', contacts_expiration, contacts)
-                print('contacts are now saved in redis...')
-                print('contacts sent through database')
-                return json.loads(contacts)
-            except Exception as e:
-                return {'message': f'Error: {e}'}, 500
-        else:
-            try:
-                print('contacts sent through database')
-                # convert ObjectId values to strings
-                req = requests.get(
-                    'https://idg2001-oblig2-api.onrender.com/contacts')
-                contacts = req.content
-                return json.loads(contacts)
-            except Exception as e:
-                return {'message': f'Error: {e}'}, 500
+    # Check if there have been more than 4 contact requests in the last hour
+    if int(redis_client.get('contact_requests') or 0) > 4:
+        try:
+            print('Line 76')
+            # Get contacts from API with API key in the headers
+            headers = {'Authorization': f'Bearer {API_KEY}'}
+            req = requests.get(URL, headers=headers)
+            contacts = req.content
+            # Save the contacts in Redis with a variable-set expiration
+            redis_client.setex('contacts', contacts_expiration, contacts)
+            print('Contacts are now saved in Redis...')
+            print('Contacts sent through the database')
+            return json.loads(contacts)
+        except Exception as e:
+            return {'message': f'Error: {e}'}, 500
+
+    try:
+        print('Contacts sent through the database')
+        # Convert ObjectId values to strings
+        req = requests.get(URL)
+        contacts = req.content
+        return json.loads(contacts)
+    except Exception as e:
+        return {'message': f'Error: {e}'}, 500
+
 
 # POST
     # 1: sende post request til mainApi
