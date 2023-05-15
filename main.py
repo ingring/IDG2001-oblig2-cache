@@ -151,15 +151,17 @@ def get_all_contacts():
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
 
-# POST
+
+@app.route('/contacts', methods=['POST'])
+def set_new_contacts():
+    # POST
     # 1: sende post request til mainApi
     # 2:
-        # if(200). (main API må sende tilbake oppdatert tools).
-            # Lagre disse tools i redis
-            # Sende tilbake 200 ok
-        # if(400) returnere failemdelingen som kom fra main
+    # if(200). (main API må sende tilbake oppdatert tools).
+    # Lagre disse tools i redis
+    # Sende tilbake 200 ok
+    # if(400) returnere failemdelingen som kom fra main
 
-
-# run server
+    # run server
 if __name__ == '__main__':
     app.run("0.0.0.0", debug=True, port=os.getenv("PORT", default=5000))
