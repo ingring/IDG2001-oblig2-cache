@@ -22,6 +22,9 @@ load_dotenv()
 app = Flask(__name__)
 
 API_KEY = os.getenv('API_KEY')
+print(API_KEY)
+if not API_KEY:
+    raise ValueError('API_KEY environment variable not set')
 
 if os.environ.get('RAILWAY_ENV'):
     redis_url = os.environ.get('REDIS_URL')
@@ -53,7 +56,22 @@ def get_tools_from_api():
 
 @app.route('/contacts/vcard', methods=['GET'])
 def get_all_contacts_vcard():
-    URL = 'https://idg2001-oblig2-api.onrender.com/contacts/vcard'
+        # Check if the 'key' parameter is provided in the request
+    key = request.args.get('key')
+    print('dotenv', repr(API_KEY))
+    print('key', repr(key))
+
+    if key is None:
+        print('API key is missing')
+        return {'message': 'API key is missing'}, 401
+
+    if key != API_KEY:
+        print('Invalid API key')
+        return {'message': 'Invalid API key'}, 401
+    
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts/vcard?key={key}'
+
+    print('URL:', URL)
     # increase the request count and reset the expiration --> print current count
     redis_client.incr('contact_vcard_requests')
     redis_client.expire('contact_vcard_requests', default_expire_100)
@@ -107,7 +125,22 @@ def get_all_contacts_vcard():
 
 @app.route('/contacts', methods=['GET'])
 def get_all_contacts():
-    URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
+        # Check if the 'key' parameter is provided in the request
+    key = request.args.get('key')
+    print('dotenv', repr(API_KEY))
+    print('key', repr(key))
+
+    if key is None:
+        print('API key is missing')
+        return {'message': 'API key is missing'}, 401
+
+    if key != API_KEY:
+        print('Invalid API key')
+        return {'message': 'Invalid API key'}, 401
+    
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts?key={key}'
+
+    print('URL:', URL)
     # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
     redis_client.expire('contact_requests', default_expire_100)
