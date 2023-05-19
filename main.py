@@ -198,15 +198,39 @@ def set_new_contacts():
 def get_contact_JSON_route(id):
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}'
     print(URL)
+    if redis_client.exists(f'contact_{id}'):
+        print('Contacts exist')
+        contact = redis_client.get(f'contact_{id}')
+        return json.loads(contact)
     try:
         req = requests.get(URL)
-        contact = json.loads(req.content)
+        contact = req.content
+        print(contact)
         redis_client.setex(
             f'contact_{id}', contacts_expiration, contact)
-        return contact
+        return json.loads(contact)
     except Exception as e:
         return {'message': f'Error: {e}'}, 500
 
+# GET contact by id and visualize in vcard format inside a JSON structure
+@app.route("/contacts/<id>/vcard", methods=["GET"])
+def get_contact_vcard_route(id):
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}/vcard'
+    print(URL)
+    if redis_client.exists(f'contact_vcard_{id}'):
+        print('Contacts exist')
+        contact = redis_client.get(f'contact_vcard_{id}')
+        return json.loads(contact)
+    try:
+        req = requests.get(URL)
+        contact_json = json.loads(req.content)
+        contact = contact_json['message']
+        print(contact)
+        redis_client.setex(
+            f'contact_vcard_{id}', contacts_expiration, json.dumps(contact))
+        return contact
+    except Exception as e:
+        return {'message': f'Error: {e}'}, 500
 
     # run server
 if __name__ == '__main__':
