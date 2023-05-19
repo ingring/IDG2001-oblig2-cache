@@ -201,6 +201,8 @@ def get_contact_JSON_route(id):
     try:
         req = requests.get(URL)
         contact = json.loads(req.content)
+        redis_client.setex(
+            f'contact_{id}', contacts_expiration, contact)
         return contact
     except Exception as e:
         return {'message': f'Error: {e}'}, 500
