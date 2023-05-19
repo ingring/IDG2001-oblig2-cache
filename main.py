@@ -3,6 +3,7 @@
 # os - to get environmental variables
 # json - to work with json format
 from flask import Flask, request
+from flask import jsonify
 import os
 import json
 from dotenv import load_dotenv
@@ -75,12 +76,13 @@ def get_all_contacts_vcard():
             redis_client.get('contact_vcard_requests') or 0)
 
         # check if there have been more than 4 contact requests in the last hour
-        if contact_request_count > 99:
+        if contact_request_count > 4:
             try:
                 print('line 76')
                 # Get contacts from API
                 req = requests.get(URL)
-                contacts = req.content
+                contacts_json = json.loads(req.content)
+                contacts = contacts_json['message']
                 # save the contacts in Redis with variable-set expiration
                 redis_client.setex(
                     'contacts_vcard', contacts_expiration, json.dumps(contacts))
@@ -94,18 +96,18 @@ def get_all_contacts_vcard():
                 print('Vcard contacts sent through database')
                 # convert ObjectId values to strings
                 req = requests.get(URL)
-                print(req)
-                # contacts = req.content['message']
-                json_array = json(req.content)
-                # print(contacts)
-                return json_array
+                print(req.status_code)
+                contacts_json = json.loads(req.content)
+                # json_array = json.loads(req.content)
+                contacts = contacts_json['message']
+                return contacts
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
 
 # get all contacts from the database + handle cache
 
 
-@app.route('/contacts', methods=['GET'])
+@ app.route('/contacts', methods=['GET'])
 def get_all_contacts():
     URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
     # Increase the request count and reset the expiration, then print the current count
@@ -128,7 +130,7 @@ def get_all_contacts():
         contact_request_count = int(redis_client.get('contact_requests') or 0)
 
     # Check if there have been more than 4 contact requests in the last hour
-    if int(redis_client.get('contact_requests') or 0) > 4:
+    if int(contact_request_count or 0) > 4:
         try:
             print('Line 76')
             # Get contacts from API with API key in the headers
@@ -143,26 +145,66 @@ def get_all_contacts():
         except Exception as e:
             return {'message': f'Error: {e}'}, 500
 
+    else:
+        try:
+            print('Contacts sent through the database')
+            # Convert ObjectId values to strings
+            req = requests.get(URL)
+            contacts = req.content
+            return json.loads(contacts)
+        except Exception as e:
+            return {'message': f'Error: {e}'}, 500
+
+
+@ app.route('/contacts', methods=['POST'])
+def set_new_contacts():
+    # Send a POST request to the main API to create new contacts
     try:
-        print('Contacts sent through the database')
-        # Convert ObjectId values to strings
-        req = requests.get(URL)
-        contacts = req.content
-        return json.loads(contacts)
+        URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': f'Bearer {API_KEY}'}
+        data = request.get_json()  # Get the new contacts from the request body
+        response = requests.post(URL, headers=headers, json=data)
+
+        if response.status_code == 200:
+            print('test', response.content)
+            response_data = response.json()  # Read the response data
+
+            json_data = response_data['json']
+
+            # Extracting the 'vcard' value
+            vcard_data = response_data['vcard']
+            print('json', json_data)
+            print('---------------------------')
+            print('vcard', vcard_data)
+            # Save the new contacts in Redis with default_expire_100 as the expiration
+            redis_client.setex(
+                'contacts', contacts_expiration, json_data)
+            redis_client.setex(
+                'contacts_vcard', contacts_expiration, vcard_data)
+            print('---------hh-------')
+            # return vcard_data
+            return {'message': 'Contacts created successfully'}, 200
+        else:
+            print('oops')
+            return response.json(), response.status_code
+
     except Exception as e:
         return {'message': f'Error: {e}'}, 500
 
 
+# GET one contacts in JSON format
+@app.route("/contacts/<id>", methods=["GET"])
+def get_contact_JSON_route(id):
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}'
+    print(URL)
+    try:
+        req = requests.get(URL)
+        contact = json.loads(req.content)
+        return contact
+    except Exception as e:
+        return {'message': f'Error: {e}'}, 500
 
-@app.route('/contacts', methods=['POST'])
-def set_new_contacts():
-    # POST
-    # 1: sende post request til mainApi
-    # 2:
-    # if(200). (main API må sende tilbake oppdatert tools).
-    # Lagre disse tools i redis
-    # Sende tilbake 200 ok
-    # if(400) returnere failemdelingen som kom fra main
 
     # run server
 if __name__ == '__main__':
