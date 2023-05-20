@@ -1,13 +1,7 @@
 import unittest
 from unittest.mock import patch
 from main import app, redis_client
-import os
-import redis
-
-from dotenv import load_dotenv
 import main
-
-load_dotenv()
 
 
 class TestMain(unittest.TestCase):
@@ -20,11 +14,13 @@ class TestMain(unittest.TestCase):
             main.redis_client = redis_mock
             assert main.redis_client.ping()
 
-    def test_get_all_tools(self):
+
+    def test_get_all_contacts(self):
         with app.test_client() as c:
-            response = c.get("/tools")
+            response = c.get("/contacts")
             assert response.status_code == 200
             assert response.content_type == "application/json"
+
 
     # def test_request_count(self):
     #     print(os.environ.get("REDIS_HOST"))
