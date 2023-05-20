@@ -1,15 +1,12 @@
 # import relevant modules
-# flask - to set up the server
-# os - to get environmental variables
-# json - to work with json format
 from flask import Flask, request
 from flask import jsonify
 import os
 import json
 from dotenv import load_dotenv
-from database import db
+# from database import db
 # to allow cors, if else the client would get a cors error
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import redis
 import requests
 
@@ -23,6 +20,9 @@ load_dotenv()
 app = Flask(__name__)
 
 API_KEY = os.getenv('API_KEY')
+print(API_KEY)
+if not API_KEY:
+    raise ValueError('API_KEY environment variable not set')
 
 if os.environ.get('RAILWAY_ENV'):
     redis_url = os.environ.get('REDIS_URL')
@@ -54,7 +54,21 @@ def get_tools_from_api():
 
 @app.route('/contacts/vcard', methods=['GET'])
 def get_all_contacts_vcard():
-    URL = 'https://idg2001-oblig2-api.onrender.com/contacts/vcard'
+    # Check if the 'key' parameter is provided in the request
+    key = request.args.get('key')
+    print('dotenv', repr(API_KEY))
+    print('key', repr(key))
+
+    if key is None:
+        print('API key is missing')
+        return {'message': 'API key is missing'}, 401
+
+    if key != API_KEY:
+        print('Invalid API key')
+        return {'message': 'Invalid API key'}, 401
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts/vcard?key={key}'
+
+    print('URL:', URL)
     # increase the request count and reset the expiration --> print current count
     redis_client.incr('contact_vcard_requests')
     redis_client.expire('contact_vcard_requests', default_expire_100)
@@ -77,6 +91,7 @@ def get_all_contacts_vcard():
 
         # check if there have been more than 4 contact requests in the last hour
         if contact_request_count > 4:
+
             try:
                 print('line 76')
                 # Get contacts from API
@@ -104,12 +119,26 @@ def get_all_contacts_vcard():
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
 
+
+
 # get all contacts from the database + handle cache
-
-
-@ app.route('/contacts', methods=['GET'])
+@app.route('/contacts', methods=['GET'])
 def get_all_contacts():
-    URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
+    # Check if the 'key' parameter is provided in the request
+    key = request.args.get('key')
+    print('dotenv', repr(API_KEY))
+    print('key', repr(key))
+
+    if key is None:
+        print('API key is missing')
+        return {'message': 'API key is missing'}, 401
+
+    if key != API_KEY:
+        print('Invalid API key')
+        return {'message': 'Invalid API key'}, 401
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts?key={key}'
+
+    print('URL:', URL)
     # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
     redis_client.expire('contact_requests', default_expire_100)
@@ -193,6 +222,7 @@ def set_new_contacts():
         return {'message': f'Error: {e}'}, 500
 
 
+
 # GET one contacts in JSON format
 @app.route("/contacts/<id>", methods=["GET"])
 def get_contact_JSON_route(id):
@@ -211,6 +241,7 @@ def get_contact_JSON_route(id):
         return json.loads(contact)
     except Exception as e:
         return {'message': f'Error: {e}'}, 500
+
 
 # GET contact by id and visualize in vcard format inside a JSON structure
 @app.route("/contacts/<id>/vcard", methods=["GET"])
