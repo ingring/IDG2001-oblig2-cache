@@ -1,15 +1,12 @@
 # import relevant modules
-# flask - to set up the server
-# os - to get environmental variables
-# json - to work with json format
 from flask import Flask, request
 from flask import jsonify
 import os
 import json
 from dotenv import load_dotenv
-from database import db
+# from database import db
 # to allow cors, if else the client would get a cors error
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import redis
 import requests
 
@@ -75,6 +72,7 @@ def get_all_contacts_vcard():
     if error:
         return jsonify(error)
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts/vcard?key={API_KEY}'
+
     # increase the request count and reset the expiration --> print current count
     redis_client.incr('contact_vcard_requests')
     redis_client.expire('contact_vcard_requests', default_expire_100)
@@ -114,7 +112,9 @@ def get_all_contacts_vcard():
 
 
         # check if there have been more than 4 contact requests in the last hour
+
         if contact_request_count > default_req_limit:
+
             try:
                 print('line 76')
                 # Get contacts from API
@@ -151,6 +151,7 @@ def get_all_contacts():
     if error:
         return jsonify(error)
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts?key={API_KEY}'
+
     # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
     redis_client.expire('contact_requests', default_expire_100)
@@ -244,6 +245,7 @@ def set_new_contacts():
         return {'message': f'Error: {e}'}, 500
 
 
+
 # GET one contacts in JSON format
 @app.route("/contacts/<id>", methods=["GET"])
 def get_contact_JSON_route(id):
@@ -265,6 +267,7 @@ def get_contact_JSON_route(id):
         return json.loads(contact)
     except Exception as e:
         return {'message': f'Error: {e}'}, 500
+
 
 # GET contact by id and visualize in vcard format inside a JSON structure
 @app.route("/contacts/<id>/vcard", methods=["GET"])
