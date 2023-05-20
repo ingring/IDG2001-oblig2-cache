@@ -90,15 +90,14 @@ def get_all_contacts_vcard():
                 # Get contacts from API
                 req = requests.get(URL)
                 contacts_json = json.loads(req.content)
-                contacts = contacts_json['message']
                 # save the contacts in Redis with variable-set expiration
-                dump_contacts = json.dumps(contacts)
+                dump_contacts = json.dumps(contacts_json)
                 redis_client.setex(
                     'contacts_vcard', short_expiration, dump_contacts)
                 redis_client.setex('contact_vcard_requests', default_expire_100, 1)
                 print('Vcard contacts are now saved in redis...')
                 print('Vcard contacts sent through database')
-                return json.loads(dump_contacts)
+                return contacts_json
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
         # if yes, get the value and decode it from JSON
@@ -120,8 +119,7 @@ def get_all_contacts_vcard():
                 # Get contacts from API
                 req = requests.get(URL)
                 contacts_json = json.loads(req.content)
-                contacts = contacts_json['message']
-                dump_contacts = json.dumps(contacts)
+                dump_contacts = json.dumps(contacts_json)
                 # save the contacts in Redis with variable-set expiration
                 redis_client.setex(
                     'contacts_vcard', short_expiration, dump_contacts)
@@ -138,8 +136,7 @@ def get_all_contacts_vcard():
                 print(req.status_code)
                 contacts_json = json.loads(req.content)
                 # json_array = json.loads(req.content)
-                contacts = contacts_json['message']
-                return contacts
+                return contacts_json
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
 
