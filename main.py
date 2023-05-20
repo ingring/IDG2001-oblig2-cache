@@ -29,6 +29,28 @@ load_dotenv()
 app = Flask(__name__)
 
 API_KEY = os.getenv('API_KEY')
+print(API_KEY)
+
+
+# Checks if it is the right key
+def check_api_key():
+    # Checks if it exists a key variable at all
+    if not API_KEY:
+        raise ValueError("API_KEY environment variable not set")
+
+    key = request.args.get("key")
+    print("dotenv", repr(API_KEY))
+    print("key", repr(key))
+
+    if key is None:
+        print("API key is missing")
+        return "API key is missing"
+
+    if key != API_KEY:
+        print("Invalid API key")
+        return "Invalid API key"
+
+    return
 
 if os.environ.get('RAILWAY_ENV'):
     redis_url = os.environ.get('REDIS_URL')
@@ -49,6 +71,9 @@ CORS(app, resources={
 # get all contacts in vcard format from the database + handle cache
 @app.route('/contacts/vcard', methods=['GET'])
 def get_all_contacts_vcard():
+    error = check_api_key()
+    if error:
+        return jsonify(error)
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts/vcard?key={API_KEY}'
     # increase the request count and reset the expiration --> print current count
     redis_client.incr('contact_vcard_requests')
@@ -122,6 +147,9 @@ def get_all_contacts_vcard():
 # get all contacts from the database + handle cache
 @ app.route('/contacts', methods=['GET'])
 def get_all_contacts():
+    error = check_api_key()
+    if error:
+        return jsonify(error)
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts?key={API_KEY}'
     # Increase the request count and reset the expiration, then print the current count
     redis_client.incr('contact_requests')
@@ -183,6 +211,9 @@ def get_all_contacts():
 # Send a POST request to the main API to create new contacts
 @ app.route('/contacts', methods=['POST'])
 def set_new_contacts():
+    error = check_api_key()
+    if error:
+        return jsonify(error)
     try:
         URL = f'https://idg2001-oblig2-api.onrender.com/contacts?key={API_KEY}'
         headers = {'Content-Type': 'application/json'}
@@ -216,6 +247,9 @@ def set_new_contacts():
 # GET one contacts in JSON format
 @app.route("/contacts/<id>", methods=["GET"])
 def get_contact_JSON_route(id):
+    error = check_api_key()
+    if error:
+        return jsonify(error)
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}?key={API_KEY}'
     print(URL)
     if redis_client.exists(f'contact_{id}'):
@@ -235,6 +269,9 @@ def get_contact_JSON_route(id):
 # GET contact by id and visualize in vcard format inside a JSON structure
 @app.route("/contacts/<id>/vcard", methods=["GET"])
 def get_contact_vcard_route(id):
+    error = check_api_key()
+    if error:
+        return jsonify(error)
     URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}/vcard?key={API_KEY}'
     print(URL)
     if redis_client.exists(f'contact_vcard_{id}'):
