@@ -1,5 +1,6 @@
 # import relevant modules
 from flask import Flask, request
+from flask import jsonify
 import os
 import json
 from dotenv import load_dotenv
@@ -88,13 +89,15 @@ def get_all_contacts_vcard():
         contact_request_count = int(
             redis_client.get('contact_vcard_requests') or 0)
 
-        # check if there have been more than 4 contact requests the last hour
-        if contact_request_count > 99:
+        # check if there have been more than 4 contact requests in the last hour
+        if contact_request_count > 4:
+
             try:
                 print('line 76')
                 # Get contacts from API
                 req = requests.get(URL)
-                contacts = req.content
+                contacts_json = json.loads(req.content)
+                contacts = contacts_json['message']
                 # save the contacts in Redis with variable-set expiration
                 redis_client.setex(
                     'contacts_vcard', contacts_expiration, json.dumps(contacts))
@@ -108,13 +111,14 @@ def get_all_contacts_vcard():
                 print('Vcard contacts sent through database')
                 # convert ObjectId values to strings
                 req = requests.get(URL)
-                print(req)
-                # contacts = req.content['message']
-                json_array = json(req.content)
-                # print(contacts)
-                return json_array
+                print(req.status_code)
+                contacts_json = json.loads(req.content)
+                # json_array = json.loads(req.content)
+                contacts = contacts_json['message']
+                return contacts
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
+
 
 
 # get all contacts from the database + handle cache
@@ -155,7 +159,7 @@ def get_all_contacts():
         contact_request_count = int(redis_client.get('contact_requests') or 0)
 
     # Check if there have been more than 4 contact requests in the last hour
-    if int(redis_client.get('contact_requests') or 0) > 4:
+    if int(contact_request_count or 0) > 4:
         try:
             print('Line 76')
             # Get contacts from API with API key in the headers
@@ -170,25 +174,95 @@ def get_all_contacts():
         except Exception as e:
             return {'message': f'Error: {e}'}, 500
 
+    else:
+        try:
+            print('Contacts sent through the database')
+            # Convert ObjectId values to strings
+            req = requests.get(URL)
+            contacts = req.content
+            return json.loads(contacts)
+        except Exception as e:
+            return {'message': f'Error: {e}'}, 500
+
+
+@ app.route('/contacts', methods=['POST'])
+def set_new_contacts():
+    # Send a POST request to the main API to create new contacts
     try:
-        print('Contacts sent through the database')
-        # Convert ObjectId values to strings
-        req = requests.get(URL)
-        contacts = req.content
-        return json.loads(contacts)
+        URL = 'https://idg2001-oblig2-api.onrender.com/contacts'
+        headers = {'Content-Type': 'application/json',
+                   'Authorization': f'Bearer {API_KEY}'}
+        data = request.get_json()  # Get the new contacts from the request body
+        response = requests.post(URL, headers=headers, json=data)
+
+        if response.status_code == 200:
+            print('test', response.content)
+            response_data = response.json()  # Read the response data
+
+            json_data = response_data['json']
+
+            # Extracting the 'vcard' value
+            vcard_data = response_data['vcard']
+            print('json', json_data)
+            print('---------------------------')
+            print('vcard', vcard_data)
+            # Save the new contacts in Redis with default_expire_100 as the expiration
+            redis_client.setex(
+                'contacts', contacts_expiration, json_data)
+            redis_client.setex(
+                'contacts_vcard', contacts_expiration, vcard_data)
+            print('---------hh-------')
+            # return vcard_data
+            return {'message': 'Contacts created successfully'}, 200
+        else:
+            print('oops')
+            return response.json(), response.status_code
+
     except Exception as e:
         return {'message': f'Error: {e}'}, 500
 
 
-# POST
-    # 1: sende post request til mainApi
-    # 2:
-        # if(200). (main API må sende tilbake oppdatert tools).
-        # Lagre disse tools i redis
-        # Sende tilbake 200 ok
-        # if(400) returnere failemdelingen som kom fra main
+
+# GET one contacts in JSON format
+@app.route("/contacts/<id>", methods=["GET"])
+def get_contact_JSON_route(id):
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}'
+    print(URL)
+    if redis_client.exists(f'contact_{id}'):
+        print('Contacts exist')
+        contact = redis_client.get(f'contact_{id}')
+        return json.loads(contact)
+    try:
+        req = requests.get(URL)
+        contact = req.content
+        print(contact)
+        redis_client.setex(
+            f'contact_{id}', contacts_expiration, contact)
+        return json.loads(contact)
+    except Exception as e:
+        return {'message': f'Error: {e}'}, 500
 
 
-# run server
+# GET contact by id and visualize in vcard format inside a JSON structure
+@app.route("/contacts/<id>/vcard", methods=["GET"])
+def get_contact_vcard_route(id):
+    URL = f'https://idg2001-oblig2-api.onrender.com/contacts/{id}/vcard'
+    print(URL)
+    if redis_client.exists(f'contact_vcard_{id}'):
+        print('Contacts exist')
+        contact = redis_client.get(f'contact_vcard_{id}')
+        return json.loads(contact)
+    try:
+        req = requests.get(URL)
+        contact_json = json.loads(req.content)
+        contact = contact_json['message']
+        print(contact)
+        redis_client.setex(
+            f'contact_vcard_{id}', contacts_expiration, json.dumps(contact))
+        return contact
+    except Exception as e:
+        return {'message': f'Error: {e}'}, 500
+
+    # run server
 if __name__ == '__main__':
     app.run("0.0.0.0", debug=True, port=os.getenv("PORT", default=5000))
