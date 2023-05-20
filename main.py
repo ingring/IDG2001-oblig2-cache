@@ -171,7 +171,7 @@ def get_all_contacts():
                 redis_client.setex('contact_requests', default_expire_100, 1)
                 print('Contacts are now saved in Redis...')
                 print('Contacts sent through Redis')
-                return contacts
+                return json.loads(contacts)
             except Exception as e:
                 return {'message': f'Error: {e}'}, 500
         print('Contacts exist')
